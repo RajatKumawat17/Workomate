@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  googleId       String   @unique @map("google_id")
+  email          String   @unique
+  name           String
+  profilePicture String?  @map("profile_picture")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  resumes        Resume[]
+  applications   JobApplication[]
+
+  @@map("users")
+}
+
+model Resume {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  name          String
+  filePath      String   @map("file_path")
+  fileSize      Int      @map("file_size")
+  fileType      String   @map("file_type")
+  parsedContent String   @map("parsed_content")
+  isActive      Boolean  @default(true) @map("is_active")
+  version       Int      @default(1)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications JobApplication[]
+
+  @@unique([userId, version])
+  @@map("resumes")
+}
+
+model JobApplication {
+  id             String            @id @default(cuid())
+  userId         String            @map("user_id")
+  resumeId       String            @map("resume_id")
+  companyName    String            @map("company_name")
+  positionTitle  String            @map("position_title")
+  jobDescription String            @map("job_description")
+  recruiterEmail String            @map("recruiter_email")
+  generatedEmail String            @map("generated_email")
+  status         ApplicationStatus @default(APPLIED)
+  googleSheetUrl String?           @map("google_sheet_url")
+  appliedAt      DateTime          @default(now()) @map("applied_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume    Resume      @relation(fields: [resumeId], references: [id])
+  emailLogs EmailLog[]
+
+  @@map("job_applications")
+}
+
+model EmailLog {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  emailSubject  String      @map("email_subject")
+  emailBody     String      @map("email_body")
+  sentAt        DateTime    @default(now()) @map("sent_at")
+  status        EmailStatus @default(SENT)
+  errorMessage  String?     @map("error_message")
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("email_logs")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETED
+  REJECTED
+  OFFER_RECEIVED
+  ACCEPTED
+  WITHDRAWN
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+  PENDING
+}
